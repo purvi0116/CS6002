@@ -7,11 +7,11 @@ from numpy import arange
 MAX = 1000
 
 parser = argparse.ArgumentParser()
-parser.add_argument("--users",type=int, default=4)
-parser.add_argument("--intervals", type=int, default=8)
-parser.add_argument("--lengths",type=list, default=[1, 1, 1, 2, 1, 1, 1, 2])
-parser.add_argument("--peaks",type=list, default=[2, 4, 3, 2])
-parser.add_argument("--active",type=list, default=[[], [0], [0, 1], [1], [1, 3], [3], [2, 3], [2]])
+parser.add_argument("-u", "--users",type=int, default=4)
+parser.add_argument("-i", "--intervals", type=int, default=8)
+parser.add_argument("-l", "--lengths",type=list, default=[1, 1, 1, 2, 1, 1, 1, 2])
+parser.add_argument("-p", "--peaks",type=list, default=[2, 4, 3, 2])
+parser.add_argument("-a", "--active",type=list, default=[[], [0], [0, 1], [1], [1, 3], [3], [2, 3], [2]])
 args = parser.parse_args()
 
 users = args.users
@@ -21,12 +21,12 @@ interval_lengths = args.lengths
 total_length = np.sum(interval_lengths)
 active_agents = args.active
 
-# create the variables
-variables = []
+# create the literals
+literals = []
 for i in range(num_intervals):
-    variables.append([])
+    literals.append([])
     for j in range(users):
-        variables[i].append(LpVariable(name=f"alloc_{i}_{j}", lowBound=0))
+        literals[i].append(LpVariable(name=f"alloc_{i}_{j}", lowBound=0))
 
 satisfied = []
 for i in range(users) :
@@ -44,7 +44,7 @@ model.setObjective(lpSum(satisfied))
 for i in range(users):
     alloted = 0
     for j in range(num_intervals):
-        alloted += variables[j][i]
+        alloted += literals[j][i]
     model.addConstraint(alloted <= peaks[i])
     
     # satisfied constraint
@@ -54,12 +54,12 @@ for i in range(users):
 
 # interval constraint
 for i in range(num_intervals):
-    model.addConstraint(lpSum(variables[i]) <= interval_lengths[i])
+    model.addConstraint(lpSum(literals[i]) <= interval_lengths[i])
 
 for i in range(num_intervals):
     for j in range(users):
         if j not in active_agents[i]:
-            model.addConstraint(variables[i][j] == 0)
+            model.addConstraint(literals[i][j] == 0)
 
 # solve the model
 status = model.solve()
@@ -74,7 +74,7 @@ print("Objective value:", num_allocated)
 # print variable values
 for i in range(num_intervals):
     for idx, elem in enumerate(active_agents[i]):
-        print(f"alloc_{i}_{elem} = {variables[i][idx].value()}")
+        print(f"alloc_{i}_{elem} = {literals[i][idx].value()}")
 
 for i in range(users):
     print(f"alloc_{i} = {satisfied[i].value()}")
@@ -92,7 +92,7 @@ grph.set_xticklabels(peaks)
 grph.grid(True)
 
 start = 0
-for i, row in enumerate(variables):
+for i, row in enumerate(literals):
     offset = 0
     for j, variable in enumerate(row):
         grph.broken_barh([(j+1, 0.2)], (start+offset, variable.value()), facecolors =('tab:green'))
@@ -102,11 +102,11 @@ for i, row in enumerate(variables):
 plt.savefig("max_process_alloc.png")
 
 ############################################ Minimizing off time ############################################
-variables2 = []
+literals2 = []
 for i in range(num_intervals):
-    variables2.append([])
+    literals2.append([])
     for j in range(users):
-        variables2[i].append(LpVariable(name=f"alloc2_{i}_{j}", lowBound=0))
+        literals2[i].append(LpVariable(name=f"alloc2_{i}_{j}", lowBound=0))
 
 var_comp2 = []
 for i in range(users) :
@@ -119,7 +119,7 @@ sum = 0
 for i in range(users):
     alloted = 0
     for j in range(num_intervals):
-        alloted += variables2[j][i]
+        alloted += literals2[j][i]
     sum += alloted
     model2.addConstraint(alloted <= peaks[i])
     model2.addConstraint(peaks[i] >= alloted + MAX*(var_comp2[i]-1))
@@ -130,12 +130,12 @@ model2.addConstraint(lpSum(var_comp2) == num_allocated)
 model2.setObjective(sum)
 
 for i in range(num_intervals):
-    model2.addConstraint(lpSum(variables2[i]) <= interval_lengths[i])
+    model2.addConstraint(lpSum(literals2[i]) <= interval_lengths[i])
 
 for i in range(num_intervals):
     for j in range(users):
         if j not in active_agents[i]:
-            model2.addConstraint(variables2[i][j] == 0)
+            model2.addConstraint(literals2[i][j] == 0)
 
 
 status2 = model2.solve()
@@ -146,7 +146,7 @@ print("Objective value (SUM):", model2.objective.value())
 # print variable values
 for i in range(num_intervals):
     for idx, elem in enumerate(active_agents[i]):
-        print(f"alloc2_{i}_{elem} = {variables2[i][idx].value()}")
+        print(f"alloc2_{i}_{elem} = {literals2[i][idx].value()}")
 
 for i in range(users):
     print(f"alloc2_{i} = {var_comp2[i].value()}")
@@ -163,7 +163,7 @@ grph.set_xticklabels(peaks)
 grph.grid(True)
 
 start = 0
-for i, row in enumerate(variables2):
+for i, row in enumerate(literals2):
     offset = 0
     for j, variable in enumerate(row):
         grph.broken_barh([(j+1, 0.2)], (start+offset, variable.value()), facecolors =('tab:green'))
