@@ -1,60 +1,64 @@
+import argparse
 import numpy as np
 from pulp import LpMaximize, LpMinimize, LpProblem, LpStatus, lpSum, LpVariable
 import matplotlib.pyplot as plt
 from numpy import arange
 
-M = 1000
-num_agents = 4
-num_intervals = 8
-peaks = [2, 4, 3, 2]
-# peaks = [2, 2, 3]
-# peaks = [4, 4, 5]
-interval_lengths = [1, 1, 1, 2, 1, 1, 1, 2]
-# interval_lengths = [3, 5] 
-# interval_lengths = [4, 6]
+MAX = 1000
+
+parser = argparse.ArgumentParser()
+parser.add_argument("--users",type=int, default=4)
+parser.add_argument("--intervals", type=int, default=8)
+parser.add_argument("--lengths",type=list, default=[1, 1, 1, 2, 1, 1, 1, 2])
+parser.add_argument("--peaks",type=list, default=[2, 4, 3, 2])
+parser.add_argument("--active",type=list, default=[[], [0], [0, 1], [1], [1, 3], [3], [2, 3], [2]])
+args = parser.parse_args()
+
+users = args.users
+num_intervals = args.intervals
+peaks = args.peaks
+interval_lengths = args.lengths
 total_length = np.sum(interval_lengths)
-connected_agents = [[], [0], [0, 1], [1], [1, 3], [3], [2, 3], [2]]
-# connected_agents = [[0], [0, 1, 2]] 
-# connected_agents = [[0, 1], [1, 2]]
+active_agents = args.active
 
 # create the variables
 variables = []
 for i in range(num_intervals):
     variables.append([])
-    for j in range(num_agents):
+    for j in range(users):
         variables[i].append(LpVariable(name=f"alloc_{i}_{j}", lowBound=0))
 
-var_comp = []
-for i in range(num_agents) :
-    var_comp.append(LpVariable(name=f"alloc_{i}", cat="Binary"))
+satisfied = []
+for i in range(users) :
+    satisfied.append(LpVariable(name=f"alloc_{i}", cat="Binary"))
 
 # create the model
 model = LpProblem(name="process", sense=LpMaximize)
 
 # add the objective function
-model.setObjective(lpSum(var_comp))
+model.setObjective(lpSum(satisfied))
 
 # add the constraints
 
 # peaks constraint
-for i in range(num_agents):
+for i in range(users):
     alloted = 0
     for j in range(num_intervals):
         alloted += variables[j][i]
     model.addConstraint(alloted <= peaks[i])
     
-    # var_comp constraint
-    # if alloted is equal to peaks[i] then var_comp[i] = 1
-    # if alloted is less than peaks[i] then var_comp[i] = 0
-    model.addConstraint(M*(var_comp[i] - 1) <= (alloted - peaks[i]))
+    # satisfied constraint
+    # if alloted is equal to peaks[i] then satisfied[i] = 1
+    # if alloted is less than peaks[i] then satisfied[i] = 0
+    model.addConstraint(MAX*(satisfied[i] - 1) <= (alloted - peaks[i]))
 
 # interval constraint
 for i in range(num_intervals):
     model.addConstraint(lpSum(variables[i]) <= interval_lengths[i])
 
 for i in range(num_intervals):
-    for j in range(num_agents):
-        if j not in connected_agents[i]:
+    for j in range(users):
+        if j not in active_agents[i]:
             model.addConstraint(variables[i][j] == 0)
 
 # solve the model
@@ -69,21 +73,21 @@ print("Objective value:", num_allocated)
 
 # print variable values
 for i in range(num_intervals):
-    for idx, elem in enumerate(connected_agents[i]):
+    for idx, elem in enumerate(active_agents[i]):
         print(f"alloc_{i}_{elem} = {variables[i][idx].value()}")
 
-for i in range(num_agents):
-    print(f"alloc_{i} = {var_comp[i].value()}")
+for i in range(users):
+    print(f"alloc_{i} = {satisfied[i].value()}")
 
 
 # plot the results
 fig, grph = plt.subplots()
 grph.set_title("Time alloted to each agent")
 grph.set_ylim(0, np.sum(interval_lengths)+1)
-grph.set_xlim(0, num_agents+1)
+grph.set_xlim(0, users+1)
 grph.set_xlabel('time required to complete the task (peaks)')
 grph.set_ylabel('time')
-grph.set_xticks(arange(1, num_agents+1, 1))
+grph.set_xticks(arange(1, users+1, 1))
 grph.set_xticklabels(peaks)
 grph.grid(True)
 
@@ -101,25 +105,25 @@ plt.savefig("max_process_alloc.png")
 variables2 = []
 for i in range(num_intervals):
     variables2.append([])
-    for j in range(num_agents):
+    for j in range(users):
         variables2[i].append(LpVariable(name=f"alloc2_{i}_{j}", lowBound=0))
 
 var_comp2 = []
-for i in range(num_agents) :
+for i in range(users) :
     var_comp2.append(LpVariable(name=f"alloc2_{i}", cat="Binary"))
 
 
 model2 = LpProblem(name="wastage", sense=LpMaximize)
 
 sum = 0
-for i in range(num_agents):
+for i in range(users):
     alloted = 0
     for j in range(num_intervals):
         alloted += variables2[j][i]
     sum += alloted
     model2.addConstraint(alloted <= peaks[i])
-    model2.addConstraint(peaks[i] >= alloted + M*(var_comp2[i]-1))
-    model2.addConstraint(peaks[i] <= alloted + M*(var_comp2[i]))
+    model2.addConstraint(peaks[i] >= alloted + MAX*(var_comp2[i]-1))
+    model2.addConstraint(peaks[i] <= alloted + MAX*(var_comp2[i]))
 
 model2.addConstraint(lpSum(var_comp2) == num_allocated)
 
@@ -129,8 +133,8 @@ for i in range(num_intervals):
     model2.addConstraint(lpSum(variables2[i]) <= interval_lengths[i])
 
 for i in range(num_intervals):
-    for j in range(num_agents):
-        if j not in connected_agents[i]:
+    for j in range(users):
+        if j not in active_agents[i]:
             model2.addConstraint(variables2[i][j] == 0)
 
 
@@ -141,20 +145,20 @@ print("Objective value (SUM):", model2.objective.value())
 
 # print variable values
 for i in range(num_intervals):
-    for idx, elem in enumerate(connected_agents[i]):
+    for idx, elem in enumerate(active_agents[i]):
         print(f"alloc2_{i}_{elem} = {variables2[i][idx].value()}")
 
-for i in range(num_agents):
+for i in range(users):
     print(f"alloc2_{i} = {var_comp2[i].value()}")
 
 # plot the results
 fig, grph = plt.subplots()
 grph.set_title("Time alloted to each agent")
 grph.set_ylim(0, np.sum(interval_lengths)+1)
-grph.set_xlim(0, num_agents+1)
+grph.set_xlim(0, users+1)
 grph.set_xlabel('time required to complete the task (peaks)')
 grph.set_ylabel('time')
-grph.set_xticks(arange(1, num_agents+1, 1))
+grph.set_xticks(arange(1, users+1, 1))
 grph.set_xticklabels(peaks)
 grph.grid(True)
 
