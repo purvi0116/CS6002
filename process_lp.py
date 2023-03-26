@@ -74,7 +74,7 @@ print("Objective value:", num_allocated)
 # print variable values
 for i in range(num_intervals):
     for idx, elem in enumerate(active_agents[i]):
-        print(f"alloc_{i}_{elem} = {literals[i][idx].value()}")
+        print(f"alloc_{i}_{elem} = {literals[i][elem].value()}")
 
 for i in range(users):
     print(f"alloc_{i} = {satisfied[i].value()}")
@@ -122,8 +122,9 @@ for i in range(users):
         alloted += literals2[j][i]
     sum += alloted
     model2.addConstraint(alloted <= peaks[i])
-    model2.addConstraint(peaks[i] >= alloted + MAX*(var_comp2[i]-1))
-    model2.addConstraint(peaks[i] <= alloted + MAX*(var_comp2[i]))
+    model2.addConstraint(MAX*(var_comp2[i]-1) <= (alloted - peaks[i]))
+    # model2.addConstraint(peaks[i] >= alloted + MAX*(var_comp2[i]-1))
+    # model2.addConstraint(peaks[i] <= alloted + MAX*(var_comp2[i]))
 
 model2.addConstraint(lpSum(var_comp2) == num_allocated)
 
@@ -146,7 +147,7 @@ print("Objective value (SUM):", model2.objective.value())
 # print variable values
 for i in range(num_intervals):
     for idx, elem in enumerate(active_agents[i]):
-        print(f"alloc2_{i}_{elem} = {literals2[i][idx].value()}")
+        print(f"alloc2_{i}_{elem} = {literals2[i][elem].value()}")
 
 for i in range(users):
     print(f"alloc2_{i} = {var_comp2[i].value()}")
