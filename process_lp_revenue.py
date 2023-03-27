@@ -1,5 +1,6 @@
 import argparse
 import numpy as np
+import pulp
 from pulp import LpMaximize, LpMinimize, LpProblem, LpStatus, lpSum, LpVariable
 import matplotlib.pyplot as plt
 from numpy import arange
@@ -10,7 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--users",type=int, default=4)
 parser.add_argument("-i", "--intervals", type=int, default=8)
 parser.add_argument("-l", "--lengths",type=list, default=[1, 1, 1, 2, 1, 1, 1, 2])
-parser.add_argument("-p", "--peaks",type=list, default=[2, 3, 3, 2])
+parser.add_argument("-p", "--peaks",type=list, default=[2, 4, 3, 2])
 parser.add_argument("-a", "--active",type=list, default=[[], [0], [0, 1], [1], [1, 3], [3], [2, 3], [2]])
 parser.add_argument("-v", "--valuations",type=list, default=[1, 3, 4, 5])
 args = parser.parse_args()
@@ -32,7 +33,7 @@ for i in range(num_intervals):
 
 satisfied = []
 for i in range(users) :
-    satisfied.append(LpVariable(name=f"alloc_{i}", cat="Binary"))
+    satisfied.append(LpVariable(name=f"alloc_{i}", cat='Binary'))
 
 # create the model
 model = LpProblem(name="process", sense=LpMaximize)
@@ -112,7 +113,7 @@ for i in range(num_intervals):
 
 satisfied2 = []
 for i in range(users) :
-    satisfied2.append(LpVariable(name=f"alloc2_{i}", cat="Binary"))
+    satisfied2.append(LpVariable(name=f"alloc2_{i}", cat='Binary'))
 
 
 model2 = LpProblem(name="revenue", sense=LpMaximize)
@@ -123,9 +124,7 @@ for i in range(users):
     for j in range(num_intervals):
         alloted += literals2[j][i]
     model2.addConstraint(alloted <= peaks[i])
-    # MAX*(satisfied[i] - 1) <= (alloted - peaks[i])
     model2.addConstraint(MAX*(satisfied2[i]-1) <= (alloted - peaks[i]))
-    # model2.addConstraint(peaks[i] <= alloted + MAX*(satisfied2[i]))
     sum += valuations[i]*satisfied2[i]
 
 model2.addConstraint(lpSum(satisfied2) == num_allocated)
@@ -141,6 +140,7 @@ for i in range(num_intervals):
             model2.addConstraint(literals2[i][j] == 0)
 
 
+# mysolver = pulp.PULP_CHOCO_CMD()
 status2 = model2.solve()
 
 print("Status:", LpStatus[status2])
@@ -152,11 +152,9 @@ for i in range(num_intervals):
         print(f"alloc2_{i}_{elem} = {literals2[i][elem].value()}")
 
 
-sat2 = []
-
 for i in range(users):
     print(f"alloc2_{i} = {satisfied2[i].value()}")
-    sat2.append(satisfied2[i].value())
+
 
 # plot the results
 fig, grph = plt.subplots()
@@ -169,8 +167,6 @@ grph.set_xticks(arange(1, users+1, 1))
 grph.set_xticklabels(peaks)
 grph.grid(True)
 
-# print("aa", active_agents)
-# print("l", literals2)
 
 start = 0
 for i, row in enumerate(literals2):
