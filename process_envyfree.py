@@ -1,17 +1,19 @@
 import argparse
 import numpy as np
+import pulp
 from pulp import LpMaximize, LpMinimize, LpProblem, LpStatus, lpSum, LpVariable
 import matplotlib.pyplot as plt
 from numpy import arange
 
 MAX = 1000
+epsilon = 1e-6
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--users",type=int, default=4)
-parser.add_argument("-i", "--intervals", type=int, default=8)
-parser.add_argument("-l", "--lengths",type=list, default=[1, 1, 1, 2, 1, 1, 1, 2])
-parser.add_argument("-p", "--peaks",type=list, default=[2, 4, 3, 2])
-parser.add_argument("-a", "--active",type=list, default=[[], [0], [0, 1], [1], [1, 3], [3], [2, 3], [2]])
+parser.add_argument("-i", "--intervals", type=int, default=3)
+parser.add_argument("-l", "--lengths",type=list, default=[1, 1, 1])
+parser.add_argument("-p", "--peaks",type=list, default=[1, 1, 1, 3])
+parser.add_argument("-a", "--active",type=list, default=[[0, 3], [1, 3], [2, 3]])
 args = parser.parse_args()
 
 users = args.users
@@ -30,7 +32,8 @@ for i in range(num_intervals):
 
 satisfied = []
 for i in range(users) :
-    satisfied.append(LpVariable(name=f"alloc_{i}", cat="Binary"))
+    satisfied.append(LpVariable(name=f"alloc_{i}", cat='Binary'))
+
 
 # create the model
 model = LpProblem(name="process", sense=LpMaximize)
@@ -110,12 +113,11 @@ for i in range(num_intervals):
 
 satisfied2 = []
 for i in range(users) :
-    satisfied2.append(LpVariable(name=f"alloc2_{i}", cat="Binary"))
+    satisfied2.append(LpVariable(name=f"alloc2_{i}", cat='Binary'))
 
+# delta = LpVariable(name="delta", cat="Binary")
 
 model2 = LpProblem(name="envyfree", sense=LpMaximize)
-
-sum = 0
 
 min_value = []
 
@@ -125,12 +127,14 @@ for i in range(users):
         m.append(LpVariable(name=f"min_{i}_{j}", lowBound=0))
     min_value.append(m)
 
+model2.setObjective(lpSum([min_value[i][j] for i in range(users) for j in range(users)]))
+
 for i in range(users):
     alloted = 0
     for j in range(num_intervals):
         alloted += literals2[j][i]
-    sum += alloted
     model2.addConstraint(alloted <= peaks[i])
+
     model2.addConstraint(MAX*(satisfied2[i]-1) <= (alloted - peaks[i]))
 
     active_i = []
@@ -138,23 +142,22 @@ for i in range(users):
     for j in range(len(active_agents)):
         if i in active_agents[j]:
             active_i.append(j)
-    print("active_i", active_i)
+    # print("active_i", active_i)
 
     for j in range(users):
         alloted_others = 0
         for k in active_i:
             alloted_others += literals2[k][j]
-    
-        model2.addConstraint(min_value[i][j] <= alloted_others)
-        model2.addConstraint(alloted >= min_value[i][j])
-        
 
-    # model2.addConstraint(peaks[i] >= alloted + MAX*(satisfied2[i]-1))
-    # model2.addConstraint(peaks[i] <= alloted + MAX*(satisfied2[i]))
+        model2.addConstraint(min_value[i][j] <= alloted_others)
+        model2.addConstraint(min_value[i][j] <= peaks[i])
+        model2.addConstraint(min_value[i][j] >= alloted_others - (1-epsilon)*(peaks[i]- alloted_others))
+        model2.addConstraint(min_value[i][j] >= peaks[i] - (1-epsilon)*(alloted_others - peaks[i]))
+
+        model2.addConstraint(min_value[i][j] <= alloted)
+    
 
 model2.addConstraint(lpSum(satisfied2) == num_allocated)
-
-model2.setObjective(lpSum([lpSum(min_value[i]) for i in range(users)]))
 
 for i in range(num_intervals):
     model2.addConstraint(lpSum(literals2[i]) <= interval_lengths[i])
@@ -164,7 +167,7 @@ for i in range(num_intervals):
         if j not in active_agents[i]:
             model2.addConstraint(literals2[i][j] == 0)
 
-
+# mysolver = pulp.PULP_CHOCO_CMD()
 status2 = model2.solve()
 
 print("Status:", LpStatus[status2])
@@ -174,6 +177,10 @@ print("Objective value (SUM):", model2.objective.value())
 for i in range(num_intervals):
     for idx, elem in enumerate(active_agents[i]):
         print(f"alloc2_{i}_{elem} = {literals2[i][elem].value()}")
+
+for i in range(users):
+    for j in range(users):
+        print(f"min_{i}_{j} = {min_value[i][j].value()}")
 
 for i in range(users):
     print(f"alloc2_{i} = {satisfied2[i].value()}")
