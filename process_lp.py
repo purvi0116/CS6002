@@ -8,10 +8,10 @@ MAX = 1000
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--users",type=int, default=4)
-parser.add_argument("-i", "--intervals", type=int, default=8)
-parser.add_argument("-l", "--lengths",type=list, default=[1, 1, 1, 2, 1, 1, 1, 2])
-parser.add_argument("-p", "--peaks",type=list, default=[2, 4, 3, 2])
-parser.add_argument("-a", "--active",type=list, default=[[], [0], [0, 1], [1], [1, 3], [3], [2, 3], [2]])
+parser.add_argument("-i", "--intervals", type=int, default=3)
+parser.add_argument("-l", "--lengths",type=list, default=[1, 1, 1])
+parser.add_argument("-p", "--peaks",type=list, default=[1, 1, 1, 3])
+parser.add_argument("-a", "--active",type=list, default=[[0, 3], [1, 3], [2, 3]])
 args = parser.parse_args()
 
 users = args.users
@@ -30,7 +30,7 @@ for i in range(num_intervals):
 
 satisfied = []
 for i in range(users) :
-    satisfied.append(LpVariable(name=f"alloc_{i}", cat="Binary"))
+    satisfied.append(LpVariable(name=f"alloc_{i}", cat='Binary'))
 
 # create the model
 model = LpProblem(name="process", sense=LpMaximize)
@@ -108,9 +108,9 @@ for i in range(num_intervals):
     for j in range(users):
         literals2[i].append(LpVariable(name=f"alloc2_{i}_{j}", lowBound=0))
 
-var_comp2 = []
+satisfied2 = []
 for i in range(users) :
-    var_comp2.append(LpVariable(name=f"alloc2_{i}", cat="Binary"))
+    satisfied2.append(LpVariable(name=f"alloc2_{i}", cat='Binary'))
 
 
 model2 = LpProblem(name="wastage", sense=LpMaximize)
@@ -122,11 +122,11 @@ for i in range(users):
         alloted += literals2[j][i]
     sum += alloted
     model2.addConstraint(alloted <= peaks[i])
-    model2.addConstraint(MAX*(var_comp2[i]-1) <= (alloted - peaks[i]))
-    # model2.addConstraint(peaks[i] >= alloted + MAX*(var_comp2[i]-1))
-    # model2.addConstraint(peaks[i] <= alloted + MAX*(var_comp2[i]))
+    model2.addConstraint(MAX*(satisfied2[i]-1) <= (alloted - peaks[i]))
+    # model2.addConstraint(peaks[i] >= alloted + MAX*(satisfied2[i]-1))
+    # model2.addConstraint(peaks[i] <= alloted + MAX*(satisfied2[i]))
 
-model2.addConstraint(lpSum(var_comp2) == num_allocated)
+model2.addConstraint(lpSum(satisfied2) == num_allocated)
 
 model2.setObjective(sum)
 
@@ -150,7 +150,7 @@ for i in range(num_intervals):
         print(f"alloc2_{i}_{elem} = {literals2[i][elem].value()}")
 
 for i in range(users):
-    print(f"alloc2_{i} = {var_comp2[i].value()}")
+    print(f"alloc2_{i} = {satisfied2[i].value()}")
 
 # plot the results
 fig, grph = plt.subplots()
