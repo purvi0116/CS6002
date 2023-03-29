@@ -30,7 +30,7 @@ for i in range(num_intervals):
 
 satisfied = []
 for i in range(users) :
-    satisfied.append(LpVariable(name=f"alloc_{i}", cat='Binary'))
+    satisfied.append(LpVariable(name=f"alloc_{i}", lowBound=0, upBound=1))
 
 # create the model
 model = LpProblem(name="process", sense=LpMaximize)
@@ -110,7 +110,7 @@ for i in range(num_intervals):
 
 satisfied2 = []
 for i in range(users) :
-    satisfied2.append(LpVariable(name=f"alloc2_{i}", cat='Binary'))
+    satisfied2.append(LpVariable(name=f"alloc2_{i}", lowBound=0, upBound=1))
 
 
 model2 = LpProblem(name="wastage", sense=LpMaximize)
