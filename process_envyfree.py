@@ -10,10 +10,10 @@ epsilon = 1e-6
 
 parser = argparse.ArgumentParser()
 parser.add_argument("-u", "--users",type=int, default=4)
-parser.add_argument("-i", "--intervals", type=int, default=3)
-parser.add_argument("-l", "--lengths",type=list, default=[1, 1, 1])
-parser.add_argument("-p", "--peaks",type=list, default=[1, 1, 1, 3])
-parser.add_argument("-a", "--active",type=list, default=[[0, 3], [1, 3], [2, 3]])
+parser.add_argument("-i", "--intervals", type=int, default=6)
+parser.add_argument("-l", "--lengths",type=list, default=[1, 1, 1, 1, 1, 1])
+parser.add_argument("-p", "--peaks",type=list, default=[1, 2, 1, 3])
+parser.add_argument("-a", "--active",type=list, default=[[0], [1], [1], [2,3], [3], [3]])
 args = parser.parse_args()
 
 users = args.users
@@ -54,6 +54,7 @@ for i in range(users):
     # if alloted is equal to peaks[i] then satisfied[i] = 1
     # if alloted is less than peaks[i] then satisfied[i] = 0
     model.addConstraint(MAX*(satisfied[i] - 1) <= (alloted - peaks[i]))
+
 
 # interval constraint
 for i in range(num_intervals):
@@ -115,7 +116,7 @@ satisfied2 = []
 for i in range(users) :
     satisfied2.append(LpVariable(name=f"alloc2_{i}", cat='Binary'))
 
-# delta = LpVariable(name="delta", cat="Binary")
+delta = LpVariable(name="delta", cat="Binary")
 
 model2 = LpProblem(name="envyfree", sense=LpMaximize)
 
@@ -151,8 +152,8 @@ for i in range(users):
 
         model2.addConstraint(min_value[i][j] <= alloted_others)
         model2.addConstraint(min_value[i][j] <= peaks[i])
-        model2.addConstraint(min_value[i][j] >= alloted_others - (1-epsilon)*(peaks[i]- alloted_others))
-        model2.addConstraint(min_value[i][j] >= peaks[i] - (1-epsilon)*(alloted_others - peaks[i]))
+        model2.addConstraint(min_value[i][j] >= alloted_others - (1-delta)*(MAX))
+        model2.addConstraint(min_value[i][j] >= peaks[i] - (delta)*(MAX))
 
         model2.addConstraint(min_value[i][j] <= alloted)
     
