@@ -1,4 +1,4 @@
-CS6002 project
+# CS6002 project
 ## process_envyfree.py
 PO + EF-A for Bivalued Preference Profile
 
